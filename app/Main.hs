@@ -161,11 +161,11 @@ runInstruction (Li d i) = do
 runInstruction (Jz a i) = do
   p <- gets pointer
   x <- readRegister a
-  when (x == 0) (jump (p + i))
+  when (x == 0) (jump (p + i - 1))
 runInstruction (Jp a i) = do
   p <- gets pointer
   x <- readRegister a
-  when (x > 0) (jump (p + i))
+  when (x > 0) (jump (p + i - 1))
 
 interpret :: Interpreter ()
 interpret = do
