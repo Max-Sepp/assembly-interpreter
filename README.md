@@ -2,6 +2,7 @@
 
 this project roughly interprets this assembly language:
 
+| instruction | description |
 | --- | --- |
 | add d a b | r[d] = r[a] + r[b] |
 | sub d a b |  r[d] = r[a] - r[b] |
