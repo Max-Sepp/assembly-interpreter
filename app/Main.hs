@@ -90,7 +90,8 @@ getInstructions code = evalStateT parse (words code)
 data IState = IState
   { instructions :: Array Int Instruction
   , registers :: Array Int Int
-  , pointer :: Int }
+  , pointer :: Int
+  , cycleCount :: Int }
 type Interpreter a = StateT IState Maybe a
 
 increment :: Interpreter ()
@@ -129,43 +130,57 @@ writeRegister ri v = do
     then modify (\s -> s { registers = rs // [(ri, v)] })
     else fail "invalid register"
 
+countCycles :: Int -> Interpreter ()
+countCycles n = modify (\s -> s { cycleCount = cycleCount s + n })
+
+
 runInstruction :: Instruction -> Interpreter ()
 runInstruction (Add d a b) = do
   x0 <- readRegister a
   x1 <- readRegister b
   writeRegister d (x0 + x1)
+  countCycles 1
 runInstruction (Sub d a b) = do
   x0 <- readRegister a
   x1 <- readRegister b
   writeRegister d (x0 - x1)
+  countCycles 1
 runInstruction (Mul d a b) = do
   x0 <- readRegister a
   x1 <- readRegister b
   writeRegister d (x0 * x1)
+  countCycles 3
 runInstruction (Shl d a) = do
   x <- readRegister a
   writeRegister d (2 * x)
+  countCycles 1
 runInstruction (Shr d a) = do
   x <- readRegister a
   writeRegister d (div x 2)
+  countCycles 1
 runInstruction (Bor d a b) = do
   x0 <- readRegister a
   x1 <- readRegister b
   writeRegister d (x0 .|. x1)
+  countCycles 1
 runInstruction (Band d a b) = do
   x0 <- readRegister a
   x1 <- readRegister b
   writeRegister d (x0 .&. x1)
+  countCycles 1
 runInstruction (Li d i) = do
   writeRegister d i
+  countCycles 1
 runInstruction (Jz a i) = do
   p <- gets pointer
   x <- readRegister a
   when (x == 0) (jump (p + i - 1))
+  countCycles 3
 runInstruction (Jp a i) = do
   p <- gets pointer
   x <- readRegister a
   when (x > 0) (jump (p + i - 1))
+  countCycles 3
 
 interpret :: Interpreter ()
 interpret = do
@@ -176,18 +191,23 @@ interpret = do
 
 -- main
 
-run :: String -> Maybe [(Int, Int)]
+run :: String -> Maybe IState
 run s = do
   is <- getInstructions s
   let state = IState { instructions = listArray (0, length is - 1) is
                      , registers    = listArray (0, 15) (replicate 16 0)
                      , pointer      = 0
-                     }
-  state' <- execStateT interpret state
-  pure (assocs (registers state'))
+                     , cycleCount   = 0 }
+  execStateT interpret state
 
 
 main :: IO ()
 main = do
   (a:_) <- getArgs
-  readFile a >>= print . run
+  ms <- run <$> readFile a
+  case ms of
+    Nothing -> print "interpretation failed"
+    Just s  -> do
+      putStrLn $ "cycles: " ++ show (cycleCount s)
+      putStrLn "registers:"
+      print (assocs (registers s))
