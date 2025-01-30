@@ -1,7 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 module Main where
 
-import Control.Monad.State (StateT (runStateT), MonadState (get, put), evalStateT, gets, modify, when, unless, execStateT)
+import Control.Monad.State (get, put, evalStateT, gets, modify, when, unless, execStateT, StateT)
 import Data.Char (isDigit)
 import Data.Bits ((.|.), (.&.))
 import Data.Array (Array, bounds, (!), indices, (//), listArray, assocs)
