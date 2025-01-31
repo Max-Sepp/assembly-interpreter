@@ -6,6 +6,7 @@ import Data.Array (Array, bounds, (!), indices, (//), listArray, assocs)
 import System.Environment (getArgs)
 import Control.Applicative (liftA2, Alternative (empty, (<|>)), asum, some, many)
 import Control.Monad.State (StateT, modify, gets, when, unless, execStateT)
+import Data.Functor (($>))
 
 type Register = Int
 
@@ -72,8 +73,8 @@ px <:> py = (:) <$> px <*> py
 char :: Char -> P Char
 char c = satisfy (== c)
 
-space :: P Char
-space = satisfy isSpace
+space :: P ()
+space = some (satisfy isSpace) $> ()
 
 string :: String -> P String
 string = traverse char
