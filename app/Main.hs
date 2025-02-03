@@ -1,14 +1,15 @@
 module Main where
 
 import Data.Char (isSpace)
-import Data.Bits ((.|.), (.&.))
+import Data.Bits ((.|.), (.&.), shiftL, shiftR, )
 import Data.Array (Array, bounds, (!), indices, (//), listArray, assocs)
 import System.Environment (getArgs)
 import Control.Applicative (liftA2, Alternative (empty, (<|>)), asum, some, many)
 import Control.Monad.State (StateT, modify, gets, when, unless, execStateT)
 import Data.Functor (($>))
+import Data.Int (Int32)
 
-type Register = Int
+type Register = Int32
 
 data Instruction
   = Add Register Register Register
@@ -18,9 +19,9 @@ data Instruction
   | Shr Register Register
   | Bor Register Register Register
   | Band Register Register Register
-  | Li Register Int
-  | Jz Register Int
-  | Jp Register Int
+  | Li Register Int32
+  | Jz Register Int32
+  | Jp Register Int32
   deriving Show
 
 -- Parsing
@@ -67,8 +68,11 @@ instance Alternative P where
   P px <|> P py = P $ \inp cok eok cerr eerr ->
     px inp cok eok cerr (py inp cok eok cerr eerr) 
 
-(<:>) :: P Char -> P String -> P String
+(<:>) :: P a -> P [a] -> P [a]
 px <:> py = (:) <$> px <*> py
+
+(<|+>) :: P [a] -> P a -> P [a]
+px <|+> py = ((++) <$> px <*> ((: []) <$> py)) <|> px
 
 char :: Char -> P Char
 char c = satisfy (== c)
@@ -85,7 +89,7 @@ oneOf = asum . map char
 digit :: P Char
 digit = oneOf ['0'..'9']
 
-number :: P Int
+number :: P Int32
 number = read <$> (some digit <|> char '-' <:> some digit)
 
 instruction :: P Instruction
@@ -98,21 +102,21 @@ instruction = asum $ map atomic
                   (c <$> number <* space <*> number)
 
 instructions :: P [Instruction]
-instructions = many (instruction <* space)
+instructions = many (atomic (instruction <* space)) <|+> instruction
 
 -- Interpreter
 
 data IState = IState
-  { program :: Array Int Instruction
-  , registers :: Array Int Int
-  , pointer :: Int
-  , cycleCount :: Int }
+  { program :: Array Int32 Instruction
+  , registers :: Array Int32 Int32
+  , pointer :: Int32
+  , cycleCount :: Int32 }
 type Interpreter a = StateT IState Maybe a
 
 increment :: Interpreter ()
 increment = modify (\s -> s { pointer = pointer s + 1 })
 
-jump :: Int -> Interpreter ()
+jump :: Int32 -> Interpreter ()
 jump p = do
   modify (\s -> s { pointer = p })
 
@@ -131,21 +135,21 @@ isFinished = do
   p <- gets pointer
   pure (u == p - 1)
 
-readRegister :: Int -> Interpreter Int
+readRegister :: Int32 -> Interpreter Int32
 readRegister ri = do
   rs <- gets registers
   if ri `elem` indices rs
     then pure (rs ! ri)
     else fail "invalid register"
 
-writeRegister :: Int -> Int -> Interpreter ()
+writeRegister :: Int32 -> Int32 -> Interpreter ()
 writeRegister ri v = do
   rs <- gets registers
   if ri `elem` indices rs
     then modify (\s -> s { registers = rs // [(ri, v)] })
     else fail "invalid register"
 
-countCycles :: Int -> Interpreter ()
+countCycles :: Int32 -> Interpreter ()
 countCycles n = modify (\s -> s { cycleCount = cycleCount s + n })
 
 
@@ -167,11 +171,11 @@ runInstruction (Mul d a b) = do
   countCycles 3
 runInstruction (Shl d a) = do
   x <- readRegister a
-  writeRegister d (2 * x)
+  writeRegister d (shiftL x 1)
   countCycles 1
 runInstruction (Shr d a) = do
   x <- readRegister a
-  writeRegister d (div x 2)
+  writeRegister d (shiftR x 1)
   countCycles 1
 runInstruction (Bor d a b) = do
   x0 <- readRegister a
@@ -209,17 +213,16 @@ interpret = do
 run :: String -> Maybe IState
 run s = do
   is <- runP instructions s
-  let state = IState { program = listArray (0, length is - 1) is
+  let state = IState { program = listArray (0, fromIntegral (length is - 1)) is
                      , registers    = listArray (0, 15) (replicate 16 0)
                      , pointer      = 0
                      , cycleCount   = 0 }
   execStateT interpret state
 
-
 main :: IO ()
 main = do
   (a:_) <- getArgs
-  ms <- run . (++" ") <$> readFile a
+  ms <- run <$> readFile a
   case ms of
     Nothing -> print "interpretation failed"
     Just s  -> do
