@@ -170,12 +170,14 @@ runInstruction (Mul d a b) = do
   writeRegister d (x0 * x1)
   countCycles 3
 runInstruction (Shl d a) = do
-  x <- readRegister a
-  writeRegister d (shiftL x 1)
+  x <- readRegister d
+  y <- readRegister a
+  writeRegister d (shiftL x (fromIntegral y))
   countCycles 1
 runInstruction (Shr d a) = do
-  x <- readRegister a
-  writeRegister d (shiftR x 1)
+  x <- readRegister d
+  y <- readRegister a
+  writeRegister d (shiftR x (fromIntegral y))
   countCycles 1
 runInstruction (Bor d a b) = do
   x0 <- readRegister a
