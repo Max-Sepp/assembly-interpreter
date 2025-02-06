@@ -32,8 +32,12 @@ newtype P a = P (forall r. String -> (a -> String -> r)
                                   -> r 
                                   -> r)
 
-runP :: P a -> String -> Maybe a
-runP (P p) str = p str (\x _ -> Just x) Just (const Nothing) Nothing
+runP :: P a -> String -> Either String a
+runP (P p) str = p str
+  (\x _ -> Right x)
+  Right
+  (Left . takeWhile (/='\n'))
+  (Left "unknown error")
 
 satisfy :: (Char -> Bool) -> P Char
 satisfy f = P $ \inp cok _ _ eerr ->
@@ -226,8 +230,8 @@ main = do
   c <- readFile a
 
   is <- case runP instructions c of
-    Just is -> return is 
-    Nothing -> ioError $ userError "parse error"
+    Right is -> return is 
+    Left x -> ioError $ userError ("parse error at: \"" ++ x ++ "\"")
   
   st <- case execStateT interpret (initialState is) of
     Just st -> return st
