@@ -8,6 +8,7 @@ import Control.Applicative (liftA2, Alternative (empty, (<|>)), asum, some, many
 import Control.Monad.State (StateT, modify, gets, when, unless, execStateT)
 import Data.Functor (($>))
 import Data.Int (Int32)
+import Data.List (dropWhileEnd)
 
 type Register = Int32
 
@@ -32,8 +33,12 @@ newtype P a = P (forall r. String -> (a -> String -> r)
                                   -> r 
                                   -> r)
 
-runP :: P a -> String -> Maybe a
-runP (P p) str = p str (\x _ -> Just x) Just (const Nothing) Nothing
+runP :: P a -> String -> Either String a
+runP (P p) str = p str
+  (\x _ -> Right x)
+  Right
+  (Left . takeWhile (/='\n'))
+  (Left "unknown error")
 
 satisfy :: (Char -> Bool) -> P Char
 satisfy f = P $ \inp cok _ _ eerr ->
@@ -67,6 +72,12 @@ instance Alternative P where
   (<|>) :: P a -> P a -> P a
   P px <|> P py = P $ \inp cok eok cerr eerr ->
     px inp cok eok cerr (py inp cok eok cerr eerr) 
+
+eof :: P ()
+eof = P $ \inp _ eok _ eerr ->
+  if null inp
+    then eok ()
+    else eerr
 
 (<:>) :: P a -> P [a] -> P [a]
 px <:> py = (:) <$> px <*> py
@@ -102,7 +113,8 @@ instruction = asum $ map atomic
                   (c <$> number <* space <*> number)
 
 instructions :: P [Instruction]
-instructions = many (atomic (instruction <* space)) <|+> instruction
+instructions =
+  (many (atomic (instruction <* space)) <|+> instruction) <* eof
 
 -- Interpreter
 
@@ -223,11 +235,11 @@ initialState is =
 main :: IO ()
 main = do
   (a:_) <- getArgs
-  c <- readFile a
+  c <- dropWhileEnd isSpace <$> readFile a
 
   is <- case runP instructions c of
-    Just is -> return is 
-    Nothing -> ioError $ userError "parse error"
+    Right is -> return is 
+    Left x -> ioError $ userError ("parse error at: \"" ++ x ++ "\"")
   
   st <- case execStateT interpret (initialState is) of
     Just st -> return st
