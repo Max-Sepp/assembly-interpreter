@@ -246,29 +246,36 @@ interpret = do
 toInt32List :: [String] -> [Int32]
 toInt32List = map read
 
+numberRegisters :: Int
+numberRegisters = 16
+
+getInitialRegisters :: [String] -> [Int32]
+getInitialRegisters []       = replicate numberRegisters 0
+getInitialRegisters (rstr:_) = rs ++ replicate (numberRegisters - length rs) 0 
+  where
+    rs = toInt32List (splitOn "," rstr)
+
 initialState :: [Int32] -> [Instruction] -> IState
 initialState rs is =
   IState { program = listArray (0, fromIntegral (length is - 1)) is
-         , registers    = listArray (0, 15) initialRegisters
+         , registers    = listArray (0, 15) rs
          , pointer      = 0
          , cycleCount   = 0 }
-    where
-      initialRegisters = rs ++ replicate (16 - length rs) 0 
 
 
 main :: IO ()
 main = do
-  (a:b:_) <- getArgs
+  (a:rest) <- getArgs
   c <- dropWhileEnd isSpace <$> readFile a
 
   is <- case runP instructions c of
     Right is -> pure is 
     Left x -> ioError $ userError ("parse error at: \"" ++ x ++ "\"")
 
-  let initialRegisters = toInt32List (splitOn "," b)
+  let initialRegisters = getInitialRegisters rest
   
   st <- case execStateT interpret (initialState initialRegisters is) of
-    Just st -> pure st
+    Right st -> pure st
     Left x -> ioError $ userError ("interpretation error at: \"" ++ x ++ "\"")
 
   putStrLn $ "cycles: " ++ show (cycleCount st)
