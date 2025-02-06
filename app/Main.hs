@@ -8,6 +8,7 @@ import Control.Applicative (liftA2, Alternative (empty, (<|>)), asum, some, many
 import Control.Monad.State (StateT, modify, gets, when, unless, execStateT)
 import Data.Functor (($>))
 import Data.Int (Int32)
+import Data.List (dropWhileEnd)
 
 type Register = Int32
 
@@ -72,6 +73,12 @@ instance Alternative P where
   P px <|> P py = P $ \inp cok eok cerr eerr ->
     px inp cok eok cerr (py inp cok eok cerr eerr) 
 
+eof :: P ()
+eof = P $ \inp _ eok _ eerr ->
+  if null inp
+    then eok ()
+    else eerr
+
 (<:>) :: P a -> P [a] -> P [a]
 px <:> py = (:) <$> px <*> py
 
@@ -106,7 +113,8 @@ instruction = asum $ map atomic
                   (c <$> number <* space <*> number)
 
 instructions :: P [Instruction]
-instructions = many (atomic (instruction <* space)) <|+> instruction
+instructions =
+  (many (atomic (instruction <* space)) <|+> instruction) <* eof
 
 -- Interpreter
 
@@ -227,7 +235,7 @@ initialState is =
 main :: IO ()
 main = do
   (a:_) <- getArgs
-  c <- readFile a
+  c <- dropWhileEnd isSpace <$> readFile a
 
   is <- case runP instructions c of
     Right is -> return is 
