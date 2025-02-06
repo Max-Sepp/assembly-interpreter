@@ -253,11 +253,11 @@ main = do
   c <- dropWhileEnd isSpace <$> readFile a
 
   is <- case runP instructions c of
-    Right is -> return is 
+    Right is -> pure is 
     Left x -> ioError $ userError ("parse error at: \"" ++ x ++ "\"")
   
   st <- case execStateT interpret (initialState is) of
-    Just st -> return st
+    Just st -> pure st
     Nothing -> ioError $ userError "interpretation error"
 
   putStrLn $ "cycles: " ++ show (cycleCount st)
