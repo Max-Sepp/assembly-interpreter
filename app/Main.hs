@@ -5,7 +5,7 @@ import Data.Bits ((.|.), (.&.), shiftL, shiftR, )
 import Data.Array (Array, bounds, (!), indices, (//), listArray, assocs)
 import System.Environment (getArgs)
 import Control.Applicative (liftA2, Alternative (empty, (<|>)), asum, some, many)
-import Control.Monad.State (StateT, modify, gets, when, unless, execStateT)
+import Control.Monad.State (StateT, modify, gets, when, unless, execStateT, lift)
 import Data.Functor (($>))
 import Data.Int (Int32)
 import Data.List (dropWhileEnd)
@@ -123,7 +123,10 @@ data IState = IState
   , registers :: Array Int32 Int32
   , pointer :: Int32
   , cycleCount :: Int32 }
-type Interpreter a = StateT IState Maybe a
+type Interpreter a = StateT IState (Either String) a
+
+ierror :: String -> Interpreter a
+ierror = lift . Left
 
 increment :: Interpreter ()
 increment = modify (\s -> s { pointer = pointer s + 1 })
@@ -139,7 +142,7 @@ nextInstruction = do
   is <- gets program
   if p `elem` ixs
     then pure (is ! p)
-    else fail "invalid pointer position"
+    else ierror "invalid pointer position"
 
 isFinished :: Interpreter Bool
 isFinished = do
@@ -152,27 +155,27 @@ readRegister ri = do
   rs <- gets registers
   if ri `elem` indices rs
     then pure (rs ! ri)
-    else fail "invalid register"
+    else ierror "invalid register"
 
 writeRegister :: Int32 -> Int32 -> Interpreter ()
 writeRegister ri v = do
   rs <- gets registers
   if ri `elem` indices rs
     then modify (\s -> s { registers = rs // [(ri, v)] })
-    else fail "invalid register"
+    else ierror "invalid register"
 
 countCycles :: Int32 -> Interpreter ()
 countCycles n = modify (\s -> s { cycleCount = cycleCount s + n })
 
 safeAdd :: Int32 -> Int32 -> Interpreter Int32
 safeAdd x y
-  | (y > 0 && s < x) || (y < 0 && s > x) = fail "Integer overflow occurred"
+  | (y > 0 && s < x) || (y < 0 && s > x) = ierror "Integer overflow occurred"
   | otherwise = pure s
   where s = x + y
 
 safeMul :: Int32 -> Int32 -> Interpreter Int32 
 safeMul x y
-  | (res `div` y) /= x = fail "Integer overflow occurred"
+  | (res `div` y) /= x = ierror "Integer overflow occurred"
   | otherwise = pure res
   where 
     res = x * y
@@ -257,8 +260,8 @@ main = do
     Left x -> ioError $ userError ("parse error at: \"" ++ x ++ "\"")
   
   st <- case execStateT interpret (initialState is) of
-    Just st -> pure st
-    Nothing -> ioError $ userError "interpretation error"
+    Right st -> pure st
+    Left x -> ioError $ userError ("interpretation error at: \"" ++ x ++ "\"")
 
   putStrLn $ "cycles: " ++ show (cycleCount st)
   putStrLn "registers:"
