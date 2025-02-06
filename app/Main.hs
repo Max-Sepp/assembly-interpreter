@@ -9,6 +9,7 @@ import Control.Monad.State (StateT, modify, gets, when, unless, execStateT)
 import Data.Functor (($>))
 import Data.Int (Int32)
 import Data.List (dropWhileEnd)
+import Data.List.Split (splitOn)
 
 type Register = Int32
 
@@ -224,24 +225,31 @@ interpret = do
 
 -- main
 
-initialState :: [Instruction] -> IState
-initialState is =
+toInt32List :: [String] -> [Int32]
+toInt32List = map read
+
+initialState :: [Int32] -> [Instruction] -> IState
+initialState rs is =
   IState { program = listArray (0, fromIntegral (length is - 1)) is
-         , registers    = listArray (0, 15) (replicate 16 0)
+         , registers    = listArray (0, 15) initialRegisters
          , pointer      = 0
          , cycleCount   = 0 }
+    where
+      initialRegisters = rs ++ replicate (16 - length rs) 0 
 
 
 main :: IO ()
 main = do
-  (a:_) <- getArgs
+  (a:b:_) <- getArgs
   c <- dropWhileEnd isSpace <$> readFile a
 
   is <- case runP instructions c of
     Right is -> return is 
     Left x -> ioError $ userError ("parse error at: \"" ++ x ++ "\"")
+
+  let initialRegisters = toInt32List (splitOn "," b)
   
-  st <- case execStateT interpret (initialState is) of
+  st <- case execStateT interpret (initialState initialRegisters is) of
     Just st -> return st
     Nothing -> ioError $ userError "interpretation error"
 

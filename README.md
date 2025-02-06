@@ -17,4 +17,6 @@ this project roughly interprets this assembly language:
 
 # how to use
 1. navigate to the directory the project is located in
-2. `$ cabal run . -- <code.asm>`
+2. `$ cabal run . -- <code.asm> 0,0,0`
+
+Second command line argument is comma seperated initial values of registers does not have to be all 16 if not specified will be set to 0. E.g. 5,2 will set register 0 to 5 and register 1 to 2 and the reset 0
