@@ -152,22 +152,37 @@ writeRegister ri v = do
 countCycles :: Int32 -> Interpreter ()
 countCycles n = modify (\s -> s { cycleCount = cycleCount s + n })
 
+safeAdd :: Int32 -> Int32 -> Interpreter Int32
+safeAdd x y
+  | (y > 0 && s < x) || (y < 0 && s > x) = fail "Integer overflow occurred"
+  | otherwise = pure s
+  where s = x + y
+
+safeMul :: Int32 -> Int32 -> Interpreter Int32 
+safeMul x y
+  | (res `div` y) /= x = fail "Integer overflow occurred"
+  | otherwise = pure res
+  where 
+    res = x * y
 
 runInstruction :: Instruction -> Interpreter ()
 runInstruction (Add d a b) = do
   x0 <- readRegister a
   x1 <- readRegister b
-  writeRegister d (x0 + x1)
+  s <- safeAdd x0 x1
+  writeRegister d s
   countCycles 1
 runInstruction (Sub d a b) = do
   x0 <- readRegister a
   x1 <- readRegister b
-  writeRegister d (x0 - x1)
+  s <- safeAdd x0 (-x1)
+  writeRegister d s
   countCycles 1
 runInstruction (Mul d a b) = do
   x0 <- readRegister a
   x1 <- readRegister b
-  writeRegister d (x0 * x1)
+  r <- safeMul x0 x1
+  writeRegister d r
   countCycles 3
 runInstruction (Shl d a) = do
   x <- readRegister d
