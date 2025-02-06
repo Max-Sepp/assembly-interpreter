@@ -221,13 +221,27 @@ run s = do
                      , cycleCount   = 0 }
   execStateT interpret state
 
+initialState :: [Instruction] -> IState
+initialState is =
+  IState { program = listArray (0, fromIntegral (length is - 1)) is
+         , registers    = listArray (0, 15) (replicate 16 0)
+         , pointer      = 0
+         , cycleCount   = 0 }
+
+
 main :: IO ()
 main = do
   (a:_) <- getArgs
-  ms <- run <$> readFile a
-  case ms of
-    Nothing -> print "interpretation failed"
-    Just s  -> do
-      putStrLn $ "cycles: " ++ show (cycleCount s)
-      putStrLn "registers:"
-      print (assocs (registers s))
+  c <- readFile a
+
+  is <- case runP instructions c of
+    Just is -> return is 
+    Nothing -> error "parse error"
+  
+  st <- case execStateT interpret (initialState is) of
+    Just st -> return st
+    Nothing -> error "interpretation failed"
+
+  putStrLn $ "cycles: " ++ show (cycleCount st)
+  putStrLn "registers:"
+  print (assocs (registers st))
