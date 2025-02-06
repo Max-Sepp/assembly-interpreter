@@ -9,6 +9,7 @@ import Control.Monad.State (StateT, modify, gets, when, unless, execStateT, lift
 import Data.Functor (($>))
 import Data.Int (Int32)
 import Data.List (dropWhileEnd)
+import Data.List.Split (splitOn)
 
 type Register = Int32
 
@@ -242,24 +243,38 @@ interpret = do
 
 -- main
 
-initialState :: [Instruction] -> IState
-initialState is =
+toInt32List :: [String] -> [Int32]
+toInt32List = map read
+
+numberRegisters :: Int
+numberRegisters = 16
+
+getInitialRegisters :: [String] -> [Int32]
+getInitialRegisters []       = replicate numberRegisters 0
+getInitialRegisters (rstr:_) = rs ++ replicate (numberRegisters - length rs) 0 
+  where
+    rs = toInt32List (splitOn "," rstr)
+
+initialState :: [Int32] -> [Instruction] -> IState
+initialState rs is =
   IState { program = listArray (0, fromIntegral (length is - 1)) is
-         , registers    = listArray (0, 15) (replicate 16 0)
+         , registers    = listArray (0, 15) rs
          , pointer      = 0
          , cycleCount   = 0 }
 
 
 main :: IO ()
 main = do
-  (a:_) <- getArgs
+  (a:rest) <- getArgs
   c <- dropWhileEnd isSpace <$> readFile a
 
   is <- case runP instructions c of
     Right is -> pure is 
     Left x -> ioError $ userError ("parse error at: \"" ++ x ++ "\"")
+
+  let initialRegisters = getInitialRegisters rest
   
-  st <- case execStateT interpret (initialState is) of
+  st <- case execStateT interpret (initialState initialRegisters is) of
     Right st -> pure st
     Left x -> ioError $ userError ("interpretation error at: \"" ++ x ++ "\"")
 
