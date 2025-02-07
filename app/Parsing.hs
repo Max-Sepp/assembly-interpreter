@@ -73,21 +73,24 @@ instance Alternative P where
 
 eof :: P ()
 eof = P $ \inp _ eok _ eerr ->
-  if null inp
+  if all isSpace inp
     then eok ()
     else eerr
+
+whitespace :: P ()
+whitespace = many (satisfy isSpace) $> ()
+
+fully :: P a -> P a
+fully p = whitespace *> p <* eof
+
+lexeme :: P a -> P a
+lexeme p = p <* whitespace
 
 (<:>) :: P a -> P [a] -> P [a]
 px <:> py = (:) <$> px <*> py
 
-(<|+>) :: P [a] -> P a -> P [a]
-px <|+> py = (++) <$> px <*> ((: []) <$> py) <|> px
-
 char :: Char -> P Char
 char c = satisfy (== c)
-
-space :: P ()
-space = some (satisfy isSpace) $> ()
 
 string :: String -> P String
 string = traverse char
@@ -105,11 +108,10 @@ instruction :: P Instruction
 instruction = asum $ map atomic
   [ a3 "add" Add, a3 "sub" Sub, a3 "mul" Mul, a3 "bor" Bor, a3 "band" Band
   , a2 "shl" Shl, a2 "shr" Shr, a2 "li"   Li, a2 "jz"   Jz, a2 "jp"     Jp ]
-  where a3 i c = string i *> space *>
-                  (c <$> number <* space <*> number <* space <*> number)
-        a2 i c = string i *> space *>
-                  (c <$> number <* space <*> number)
+  where a2 i c = lexeme (string i) *> 
+                   (c <$> lexeme number <*> lexeme number)
+        a3 i c = lexeme (string i) *>
+                   (c <$> lexeme number <*> lexeme number <*> lexeme number)
 
 instructions :: P [Instruction]
-instructions =
-  (many (atomic (instruction <* space)) <|+> instruction) <* eof
+instructions = fully (many (atomic (lexeme instruction)))
