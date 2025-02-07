@@ -1,11 +1,11 @@
 module Main where
 
 import Data.Char (isSpace)
-import Data.Array (Array, bounds, listArray, elems)
+import Data.Array (Array, listArray, assocs, Ix)
 import System.Environment (getArgs)
 import Control.Monad.State (execStateT)
 import Data.Int (Int32)
-import Data.List (dropWhileEnd, intercalate)
+import Data.List (dropWhileEnd, intercalate, transpose)
 import Data.List.Split (splitOn)
 
 import Parsing
@@ -30,40 +30,23 @@ initialState rs is =
          , pointer      = 0
          , cycleCount   = 0 }
 
-showArrayTable :: (Num a, Enum a, Show a, Show b, Integral a) => 
-                  Array a b -> String
-showArrayTable rs =
-  row ++ "\n"
-  ++ indexRow ++ "\n"
-  ++ row ++ "\n"
-  ++ registerRow ++ "\n"
-  ++ row ++ "\n"
+showArrayTable :: forall i e . (Show e, Show i, Ix i) => Array i e -> String
+showArrayTable xs = intercalate "\n" (map concat (transpose chunks))
   where
-    (minIndex, maxIndex) = bounds rs
+    chunks = map getChunk (assocs xs) ++ [["+", "|", "-", "|", "+"]]
+    getChunk :: (i, e) -> [String]
+    getChunk (x, y) =
+      [ bar, x' ++ replicate (n - lx) ' '
+      , bar, y' ++ replicate (n - ly) ' '
+      , bar                               ]
+      where
+        x'  = "| " ++ show x ++ " "
+        y'  = "| " ++ show y ++ " "
+        lx  = length x'
+        ly  = length y'
+        n   = max lx ly
+        bar = '+' : replicate (n - 1) '-'
 
-    elementWidth =
-      maximum (
-          map (length . show) [minIndex..maxIndex]
-          ++ map (length . show) (elems rs)
-      )
-
-    numElements = fromIntegral (maxIndex - minIndex + 1)
-
-    row = 
-      "+-" ++
-      intercalate "-+-" (replicate numElements (replicate elementWidth '-'))
-      ++ "-+"
-
-    pad :: String -> String
-    pad cs = replicate (elementWidth - length cs) ' ' ++ cs
-
-    indexStringList = map (pad . show) [minIndex..maxIndex]
-
-    indexRow = "| " ++ intercalate " | " indexStringList ++ " |"
-
-    registerStringList = map (pad . show) (elems rs)
-
-    registerRow = "| " ++ intercalate " | " registerStringList ++ " |"
 
 main :: IO ()
 main = do
@@ -80,4 +63,4 @@ main = do
 
   putStrLn $ "cycles: " ++ show (cycleCount st)
   putStrLn "registers:"
-  putStr $ showArrayTable (registers st)
+  putStrLn $ showArrayTable (registers st)
