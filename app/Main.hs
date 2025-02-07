@@ -42,10 +42,10 @@ showArrayTable rs =
     (minIndex, maxIndex) = bounds rs
 
     elementWidth =
-        maximum (
-            map (length . show) [minIndex..maxIndex]
-            ++ map (length . show) (elems rs)
-        )
+      maximum (
+          map (length . show) [minIndex..maxIndex]
+          ++ map (length . show) (elems rs)
+      )
 
     numElements = fromIntegral (maxIndex - minIndex + 1)
 
