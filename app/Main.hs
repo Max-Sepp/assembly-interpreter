@@ -14,19 +14,19 @@ import Interpreting
 toInt32List :: [String] -> [Int32]
 toInt32List = map read
 
-numberRegisters :: Int
+numberRegisters :: Integral a => a
 numberRegisters = 16
 
-getInitialRegisters :: [String] -> [Int32]
-getInitialRegisters []       = replicate numberRegisters 0
-getInitialRegisters (rstr:_) = rs ++ replicate (numberRegisters - length rs) 0
+initialRegisters :: [String] -> [Int32]
+initialRegisters []       = replicate numberRegisters 0
+initialRegisters (rstr:_) = rs ++ replicate (numberRegisters - length rs) 0
   where
     rs = toInt32List (splitOn "," rstr)
 
 initialState :: [Int32] -> [Instruction] -> IState
 initialState rs is =
   IState { program = listArray (0, fromIntegral (length is - 1)) is
-         , registers    = listArray (0, 15) rs
+         , registers    = listArray (0, numberRegisters - 1) rs
          , pointer      = 0
          , cycleCount   = 0 }
 
@@ -67,16 +67,14 @@ showArrayTable rs =
 
 main :: IO ()
 main = do
-  (a:rest) <- getArgs
+  (a:as) <- getArgs
   c <- dropWhileEnd isSpace <$> readFile a
 
   is <- case runP instructions c of
     Right is -> pure is
     Left x -> ioError $ userError ("parse error at: \"" ++ x ++ "\"")
 
-  let initialRegisters = getInitialRegisters rest
-
-  st <- case execStateT interpret (initialState initialRegisters is) of
+  st <- case execStateT interpret (initialState (initialRegisters as) is) of
     Right st -> pure st
     Left x -> ioError $ userError ("interpretation error at: \"" ++ x ++ "\"")
 
