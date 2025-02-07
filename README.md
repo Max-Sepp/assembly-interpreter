@@ -1,6 +1,15 @@
 # assembly-interpreter
 
-this project roughly interprets this assembly language:
+This is a project that interprets an assembly language.
+
+## Specification
+- 16 32-bit registers, indexed 0 through 15
+- There are no memory instructions
+- Clock cycles are counted - every instruction has takes one clock cycle, apart from `mul`, `jp` and `jz`, which take 3
+- `jz` and `jp` both do a relative jump; positive is forward, negative is backwards
+- Any overflow will crash the system
+
+The instruction set is listed below.
 
 | instruction | description |
 | --- | --- |
@@ -15,8 +24,19 @@ this project roughly interprets this assembly language:
 | jz a i | do a relative jump by i instructions if r[a]==0 |
 | jp a i | do a relative jump by i instructions if r[a] > 0 |
 
-# how to use
-1. navigate to the directory the project is located in
-2. `$ cabal run . -- <code.asm> 0,0,0`
+## Usage
 
-Second command line argument is comma seperated initial values of registers does not have to be all 16 if not specified will be set to 0. E.g. 5,2 will set register 0 to 5 and register 1 to 2 and the reset 0
+1. Clone the repository, using `git clone`
+2. Navigate to the directory the repository is located
+3. Run `$ cabal run . -- <code> <register initialisation>`
+
+Code denotes the assembly file you want to interpret, e.g., `test.asm`.
+The register initialisation is a comma separated list of the initial register values. You can have __zero__ to __sixteen__ of these.
+
+### Example command
+```
+$ cabal run . -- test.asm 0,100,20
+# r[0] = 0
+# r[1] = 100
+# r[2] = 20
+```
