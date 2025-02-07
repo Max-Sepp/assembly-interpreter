@@ -1,4 +1,7 @@
-module Parsing where
+module Parsing
+  ( Register, Instruction(..)
+  , instructions, runP
+  ) where
 
 import Data.Char (isSpace)
 import Data.Functor (($>))
