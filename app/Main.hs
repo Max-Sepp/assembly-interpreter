@@ -95,7 +95,7 @@ space = some (satisfy isSpace) $> ()
 string :: String -> P String
 string = traverse char
 
-oneOf :: String -> P Char
+oneOf :: [Char] -> P Char
 oneOf = asum . map char
 
 digit :: P Char
@@ -270,31 +270,31 @@ showArrayTable rs =
     ++ registerRow ++ "\n"
     ++ row ++ "\n"
     where
-        (minIndex, maxIndex) = bounds rs
+      (minIndex, maxIndex) = bounds rs
 
-        elementWidth =
-            maximum (
-                map (length . show) [minIndex..maxIndex]
-                ++ map (length . show) (elems rs)
-            )
+      elementWidth =
+          maximum (
+              map (length . show) [minIndex..maxIndex]
+              ++ map (length . show) (elems rs)
+          )
 
-        numElements = fromIntegral (maxIndex - minIndex + 1)
+      numElements = fromIntegral (maxIndex - minIndex + 1)
 
-        row = "+-" ++
-              intercalate "-+-"
-                (replicate numElements (replicate elementWidth '-'))
-              ++ "-+"
+      row = 
+        "+-" ++
+        intercalate "-+-" (replicate numElements (replicate elementWidth '-'))
+        ++ "-+"
 
-        pad :: String -> String
-        pad cs = replicate (elementWidth - length cs) ' ' ++ cs
+      pad :: String -> String
+      pad cs = replicate (elementWidth - length cs) ' ' ++ cs
 
-        indexStringList = map (pad . show) [minIndex..maxIndex]
+      indexStringList = map (pad . show) [minIndex..maxIndex]
 
-        indexRow = "| " ++ intercalate " | " indexStringList ++ " |"
+      indexRow = "| " ++ intercalate " | " indexStringList ++ " |"
 
-        registerStringList = map (pad . show) (elems rs)
+      registerStringList = map (pad . show) (elems rs)
 
-        registerRow = "| " ++ intercalate " | " registerStringList ++ " |"
+      registerRow = "| " ++ intercalate " | " registerStringList ++ " |"
 
 main :: IO ()
 main = do
