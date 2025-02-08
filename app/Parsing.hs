@@ -44,6 +44,20 @@ satisfy f = P $ \inp cok _ _ eerr ->
     c:cs | f c -> cok c cs
     _          -> eerr
 
+check :: (a -> Bool) -> P a -> P a
+check f (P subP) = P $ \inp cok eok cerr eerr ->
+  subP inp 
+    (\x str -> 
+      if f x
+        then cok x str 
+        else cerr str
+    )
+    (\x -> 
+      if f x
+        then eok x 
+        else eerr)
+    cerr eerr
+
 atomic :: P a -> P a
 atomic (P x) = P $ \inp cok eok _ eerr ->
   x inp cok eok (const eerr) eerr
@@ -101,17 +115,36 @@ oneOf = asum . map char
 digit :: P Char
 digit = oneOf ['0'..'9']
 
-number :: P Int32
-number = read <$> (some digit <|> char '-' <:> some digit)
+number :: P Int
+number = read <$> (some digit <|> char '-' <:> some digit) 
+
+num16 :: P Int32
+num16 = fromIntegral <$> check (intInRange specMin specMax) number 
+  where specMin = -32768 
+        specMax = 32767
+
+num32 :: P Int32
+num32 = fromIntegral <$> check (intInRange specMin specMax) number
+  where specMin = fromIntegral (minBound :: Int32) 
+        specMax = fromIntegral (maxBound :: Int32)
+    
+register :: P Int32
+register = fromIntegral <$> check (intInRange 0 15) number
+
+intInRange :: Int -> Int -> Int -> Bool
+intInRange minB maxB x = x >= minB && x <= maxB
 
 instruction :: P Instruction
 instruction = asum $ map atomic
   [ a3 "add" Add, a3 "sub" Sub, a3 "mul" Mul, a3 "bor" Bor, a3 "band" Band
-  , a2 "shl" Shl, a2 "shr" Shr, a2 "li"   Li, a2 "jz"   Jz, a2 "jp"     Jp ]
-  where a2 i c = lexeme (string i) *> 
-                   (c <$> lexeme number <*> lexeme number)
+  , a2rr "shl" Shl, a2rr "shr" Shr, a2r16 "li" Li, a2r32 "jz" Jz, a2r32 "jp" Jp ]
+  where a2 p1 p2 i c = lexeme (string i) *> 
+                   (c <$> lexeme p1 <*> lexeme p2)
+        a2rr = a2 register register
+        a2r16 = a2 register num16
+        a2r32 = a2 register num32
         a3 i c = lexeme (string i) *>
-                   (c <$> lexeme number <*> lexeme number <*> lexeme number)
+                   (c <$> lexeme register <*> lexeme register <*> lexeme register)
 
 instructions :: P [Instruction]
 instructions = fully (many (atomic (lexeme instruction)))
