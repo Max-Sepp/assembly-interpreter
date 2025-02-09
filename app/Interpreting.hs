@@ -66,6 +66,7 @@ safeAdd x y
 
 safeMul :: Int32 -> Int32 -> Interpreter Int32
 safeMul x y
+  | x == 0 || y == 0 = pure 0
   | res `div` y /= x = ierror "Integer overflow occurred"
   | otherwise = pure res
   where
