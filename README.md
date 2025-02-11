@@ -33,6 +33,8 @@ The instruction set is listed below.
 Code denotes the assembly file you want to interpret, e.g., `test.asm`.
 The register initialisation is a comma separated list of the initial register values. You can have __zero__ to __sixteen__ of these.
 
+__NOTE__: This project supports comments, denoted with `;`. Please keep in mind that other interpreters for this assembly language _probably won't support this feature_. If you want it to be compatible, remember to remove the comments.
+
 ### Example command
 ```
 $ cabal run . -- test.asm 0,100,20
