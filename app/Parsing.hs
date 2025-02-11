@@ -92,7 +92,13 @@ eof = P $ \inp _ eok _ eerr ->
     else eerr
 
 whitespace :: P ()
-whitespace = many (satisfy isSpace) $> ()
+whitespace = many spaceOrComment $> () 
+
+spaceOrComment :: P ()
+spaceOrComment = (satisfy isSpace $> ()) <|> blockComment
+
+blockComment :: P ()
+blockComment = string "$" *> (many (satisfy (/= '$')) <* string "$") $> ()
 
 fully :: P a -> P a
 fully p = whitespace *> p <* eof
