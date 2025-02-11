@@ -98,7 +98,7 @@ spaceOrComment :: P ()
 spaceOrComment = (satisfy isSpace $> ()) <|> blockComment
 
 blockComment :: P ()
-blockComment = string "$" *> (many (satisfy (/= '$')) <* string "$") $> ()
+blockComment = (string ";" *> many (satisfy (/= '\n'))) $> ()
 
 fully :: P a -> P a
 fully p = whitespace *> p <* eof
